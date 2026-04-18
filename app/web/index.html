@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chess Stage 2 GUI</title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; }
+    .container { max-width: 1240px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 520px 1fr; gap: 16px; }
+    .card { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    #board { display: grid; grid-template-columns: repeat(8, 62px); border: 1px solid #444; width: fit-content; }
+    .sq { width: 62px; height: 62px; display: flex; align-items: center; justify-content: center; font-size: 38px; cursor: pointer; }
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .selected { outline: 3px solid #2d7ef7; }
+    .legal { box-shadow: inset 0 0 0 4px rgba(46, 204, 113, 0.75); }
+    .section-title { font-size: 14px; font-weight: 700; margin-top: 8px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { display: block; margin-top: 8px; font-size: 13px; }
+    input, select, button, textarea { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; }
+    .buttons { display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+    textarea { font-family: Consolas, monospace; }
+    .hint { font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div id="board"></div>
+      <p id="status">状态：未开始</p>
+      <p id="modeHint" class="hint">模式：-</p>
+      <p id="seriesHint" class="hint">机机对战状态：-</p>
+    </div>
+
+    <div class="card">
+      <div class="section-title">模式选择</div>
+      <label>对战模式</label>
+      <select id="mode">
+        <option value="human_vs_human">人人对战</option>
+        <option value="human_vs_engine">人机对战（人类执白）</option>
+        <option value="engine_vs_engine">机机对战</option>
+      </select>
+
+      <div class="section-title">引擎与参数</div>
+      <label>白方引擎路径（留空则用 CHESS_STOCKFISH_PATH）</label>
+      <input id="whiteEnginePath" placeholder="/usr/games/stockfish" />
+      <label>黑方引擎路径（留空则用 CHESS_STOCKFISH_PATH）</label>
+      <input id="blackEnginePath" placeholder="/usr/games/stockfish" />
+
+      <div class="row2">
+        <div>
+          <label>思考时间（秒）</label>
+          <input id="thinkTime" type="number" min="0.01" step="0.01" value="0.1" />
+        </div>
+        <div>
+          <label>机机局数</label>
+          <input id="games" type="number" min="1" max="200" value="5" />
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="startBtn">开始</button>
+        <button id="resetBtn">重开</button>
+        <button id="stopBtn">停止</button>
+        <button id="exportPgnBtn">导出PGN</button>
+      </div>
+
+      <div class="section-title">当前信息</div>
+      <label>当前 FEN</label>
+      <textarea id="fen" rows="2" readonly></textarea>
+      <label>走子记录（UCI）</label>
+      <textarea id="moves" rows="4" readonly></textarea>
+      <label>对局结果</label>
+      <input id="result" readonly />
+      <label>当前 PGN</label>
+      <textarea id="pgn" rows="6" readonly></textarea>
+
+      <div class="section-title">机机系列结果</div>
+      <textarea id="engineSummary" rows="8" readonly></textarea>
+    </div>
+  </div>
+
+  <script src="/static/main.js"></script>
+</body>
+</html>
