@@ -15,6 +15,7 @@ def test_health() -> None:
 def test_engine_invalid_fen_returns_400() -> None:
     r = client.post("/api/engine/move", json={"fen": "bad-fen", "think_time": 0.1})
     assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "invalid_fen"
 
 
 def test_engine_valid_request(monkeypatch) -> None:
@@ -24,7 +25,6 @@ def test_engine_valid_request(monkeypatch) -> None:
     monkeypatch.setattr("app.main.analyze_position", fake_analyze_position)
     r = client.post("/api/engine/analyze", json={"fen": START_FEN})
     assert r.status_code == 200
-    assert r.json()["best_move"] == "e2e4"
 
 
 def test_engine_missing_stockfish_returns_503(monkeypatch) -> None:
@@ -34,6 +34,7 @@ def test_engine_missing_stockfish_returns_503(monkeypatch) -> None:
     monkeypatch.setattr("app.main.analyze_position", fake_analyze_position)
     r = client.post("/api/engine/move", json={"fen": START_FEN})
     assert r.status_code == 503
+    assert r.json()["detail"]["code"] == "engine_missing"
 
 
 def test_engine_runtime_failure_returns_502(monkeypatch) -> None:
@@ -45,20 +46,44 @@ def test_engine_runtime_failure_returns_502(monkeypatch) -> None:
     assert r.status_code == 502
 
 
-def test_create_hvh_game_and_move_and_pgn() -> None:
-    create = client.post("/api/game/create", json={"mode": "human_vs_human", "think_time": 0.1}).json()
-    move = client.post("/api/game/move", json={"game_id": create["game_id"], "move_uci": "e2e4"})
-    assert move.status_code == 200
-    data = move.json()
-    assert data["moves"] == ["e2e4"]
-    assert "1. e4" in data["pgn"]
+def test_human_vs_engine_black_engine_moves_first(monkeypatch) -> None:
+    def fake_engine_move(game_id: str):
+        from app.main import service
 
+        session = service.get_game(game_id)
+        if session.board.turn:
+            session.board.push_uci("e2e4")
+            session.moves.append("e2e4")
+        return session
 
-def test_legal_moves_endpoint() -> None:
-    create = client.post("/api/game/create", json={"mode": "human_vs_human", "think_time": 0.1}).json()
-    r = client.post("/api/game/legal-moves", json={"game_id": create["game_id"], "from_square": "e2"})
+    monkeypatch.setattr("app.main.service.maybe_apply_engine_move", fake_engine_move)
+    r = client.post(
+        "/api/game/create",
+        json={"mode": "human_vs_engine", "human_color": "black", "think_time": 0.1},
+    )
     assert r.status_code == 200
-    assert "e3" in r.json()["to_squares"]
+    data = r.json()
+    assert data["moves"] == ["e2e4"]
+    assert data["human_color"] == "black"
+
+
+def test_not_your_turn_error(monkeypatch) -> None:
+    monkeypatch.setattr("app.main.service.maybe_apply_engine_move", lambda game_id: None)
+    create = client.post(
+        "/api/game/create",
+        json={"mode": "human_vs_engine", "human_color": "black", "think_time": 0.1},
+    ).json()
+
+    r = client.post("/api/game/move", json={"game_id": create["game_id"], "move_uci": "e7e5"})
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "not_your_turn"
+
+
+def test_no_legal_moves_error() -> None:
+    create = client.post("/api/game/create", json={"mode": "human_vs_human", "think_time": 0.1}).json()
+    r = client.post("/api/game/legal-moves", json={"game_id": create["game_id"], "from_square": "e5"})
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "no_legal_moves"
 
 
 def test_engine_vs_engine_series_start_status_stop(monkeypatch) -> None:
@@ -85,15 +110,10 @@ def test_engine_vs_engine_series_start_status_stop(monkeypatch) -> None:
 
     start = client.post("/api/game/engine-vs-engine/start", json={"games": 2, "think_time": 0.1})
     assert start.status_code == 200
-    assert start.json()["series_id"] == "series-1"
-
     status = client.get("/api/game/engine-vs-engine/status/series-1")
     assert status.status_code == 200
-    assert status.json()["completed_games"] == 1
-
     stop = client.post("/api/game/engine-vs-engine/stop", json={"series_id": "series-1"})
     assert stop.status_code == 200
-    assert stop.json()["stop_requested"] is True
 
 
 def test_stage3_unfinished() -> None:

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from random import choice
 from threading import Lock, Thread
 from uuid import uuid4
 
@@ -6,6 +7,18 @@ import chess
 import chess.pgn
 
 from app.engine.stockfish_adapter import StockfishEngineAdapter
+
+
+class IllegalMoveError(ValueError):
+    pass
+
+
+class NotYourTurnError(ValueError):
+    pass
+
+
+class NoLegalMovesError(ValueError):
+    pass
 
 
 @dataclass
@@ -17,6 +30,7 @@ class GameSession:
     think_time: float = 0.2
     white_engine_path: str | None = None
     black_engine_path: str | None = None
+    human_color: str = "white"
 
 
 @dataclass
@@ -47,9 +61,11 @@ class GameService:
         start_fen: str | None,
         white_engine_path: str | None,
         black_engine_path: str | None,
+        human_color: str,
     ) -> GameSession:
         board = chess.Board(start_fen) if start_fen else chess.Board()
         game_id = str(uuid4())
+        resolved_human_color = choice(["white", "black"]) if human_color == "random" else human_color
         session = GameSession(
             game_id=game_id,
             mode=mode,
@@ -57,6 +73,7 @@ class GameService:
             think_time=think_time,
             white_engine_path=white_engine_path,
             black_engine_path=black_engine_path,
+            human_color=resolved_human_color,
         )
         self._games[game_id] = session
         return session
@@ -66,11 +83,22 @@ class GameService:
             raise KeyError("Game not found")
         return self._games[game_id]
 
+    def _is_human_turn(self, session: GameSession) -> bool:
+        if session.mode != "human_vs_engine":
+            return True
+        if session.human_color == "white":
+            return session.board.turn == chess.WHITE
+        return session.board.turn == chess.BLACK
+
     def apply_human_move(self, game_id: str, move_uci: str) -> GameSession:
         session = self.get_game(game_id)
+        if not self._is_human_turn(session):
+            raise NotYourTurnError("It is not your turn")
+
         move = chess.Move.from_uci(move_uci)
         if move not in session.board.legal_moves:
-            raise ValueError(f"Illegal move: {move_uci}")
+            raise IllegalMoveError(f"Illegal move: {move_uci}")
+
         session.board.push(move)
         session.moves.append(move_uci)
         return session
@@ -81,14 +109,18 @@ class GameService:
             square_idx = chess.parse_square(from_square)
         except ValueError as exc:
             raise ValueError(f"Invalid square: {from_square}") from exc
-        return [chess.square_name(move.to_square) for move in session.board.legal_moves if move.from_square == square_idx]
+
+        moves = [chess.square_name(move.to_square) for move in session.board.legal_moves if move.from_square == square_idx]
+        if not moves:
+            raise NoLegalMovesError(f"No legal moves from {from_square}")
+        return moves
 
     def maybe_apply_engine_move(self, game_id: str) -> GameSession:
         session = self.get_game(game_id)
         if session.board.is_game_over() or session.mode == "human_vs_human":
             return session
 
-        if session.mode == "human_vs_engine" and session.board.turn == chess.WHITE:
+        if session.mode == "human_vs_engine" and self._is_human_turn(session):
             return session
 
         engine_path = session.white_engine_path if session.board.turn == chess.WHITE else session.black_engine_path
@@ -115,8 +147,7 @@ class GameService:
         with self._lock:
             self._series[series.series_id] = series
 
-        thread = Thread(target=self._run_series, args=(series.series_id,), daemon=True)
-        thread.start()
+        Thread(target=self._run_series, args=(series.series_id,), daemon=True).start()
         return series
 
     def _run_series(self, series_id: str) -> None:
@@ -150,18 +181,16 @@ class GameService:
             elif game_result == "1/2-1/2":
                 series.stats["draws"] += 1
 
-            summary = {
-                "game": game_index + 1,
-                "result": game_result,
-                "moves": moves,
-                "final_fen": board.fen(),
-                "pgn": moves_to_pgn(moves, game_result),
-            }
-            series.summaries.append(summary)
+            series.summaries.append(
+                {
+                    "game": game_index + 1,
+                    "result": game_result,
+                    "moves": moves,
+                    "final_fen": board.fen(),
+                    "pgn": moves_to_pgn(moves, game_result),
+                }
+            )
             series.completed_games += 1
-
-            if series.stop_requested:
-                break
 
         series.running = False
 
@@ -178,14 +207,12 @@ class GameService:
 
 
 def moves_to_pgn(moves: list[str], result: str = "*") -> str:
-    board = chess.Board()
     game = chess.pgn.Game()
     game.headers["Result"] = result
     node = game
     for move_uci in moves:
         move = chess.Move.from_uci(move_uci)
         node = node.add_variation(move)
-        board.push(move)
     return str(game)
 
 
@@ -194,6 +221,7 @@ def game_to_dict(session: GameSession) -> dict:
     return {
         "game_id": session.game_id,
         "mode": session.mode,
+        "human_color": session.human_color,
         "fen": board.fen(),
         "turn": "white" if board.turn == chess.WHITE else "black",
         "moves": session.moves,

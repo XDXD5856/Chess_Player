@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Chess Stage 2 GUI</title>
+  <title id="pageTitle"></title>
   <style>
     body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; }
     .container { max-width: 1240px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 520px 1fr; gap: 16px; }
@@ -27,59 +27,79 @@
   <div class="container">
     <div class="card">
       <div id="board"></div>
-      <p id="status">状态：未开始</p>
-      <p id="modeHint" class="hint">模式：-</p>
-      <p id="seriesHint" class="hint">机机对战状态：-</p>
+      <p id="status"></p>
+      <p id="modeHint" class="hint"></p>
+      <p id="seriesHint" class="hint"></p>
     </div>
 
     <div class="card">
-      <div class="section-title">模式选择</div>
-      <label>对战模式</label>
+      <div class="row2">
+        <div>
+          <div class="section-title" id="sectionMode"></div>
+        </div>
+        <div>
+          <label id="langLabel" for="language"></label>
+          <select id="language">
+            <option value="en">English</option>
+            <option value="zh">简体中文</option>
+          </select>
+        </div>
+      </div>
+
+      <label id="modeLabel" for="mode"></label>
       <select id="mode">
-        <option value="human_vs_human">人人对战</option>
-        <option value="human_vs_engine">人机对战（人类执白）</option>
-        <option value="engine_vs_engine">机机对战</option>
+        <option value="human_vs_human" id="optHvh"></option>
+        <option value="human_vs_engine" id="optHve"></option>
+        <option value="engine_vs_engine" id="optEve"></option>
       </select>
 
-      <div class="section-title">引擎与参数</div>
-      <label>白方引擎路径（留空则用 CHESS_STOCKFISH_PATH）</label>
+      <label id="humanColorLabel" for="humanColor"></label>
+      <select id="humanColor">
+        <option value="white" id="humanWhite"></option>
+        <option value="black" id="humanBlack"></option>
+        <option value="random" id="humanRandom"></option>
+      </select>
+
+      <div class="section-title" id="sectionEngine"></div>
+      <label id="whitePathLabel" for="whiteEnginePath"></label>
       <input id="whiteEnginePath" placeholder="/usr/games/stockfish" />
-      <label>黑方引擎路径（留空则用 CHESS_STOCKFISH_PATH）</label>
+      <label id="blackPathLabel" for="blackEnginePath"></label>
       <input id="blackEnginePath" placeholder="/usr/games/stockfish" />
 
       <div class="row2">
         <div>
-          <label>思考时间（秒）</label>
+          <label id="thinkTimeLabel" for="thinkTime"></label>
           <input id="thinkTime" type="number" min="0.01" step="0.01" value="0.1" />
         </div>
         <div>
-          <label>机机局数</label>
+          <label id="gamesLabel" for="games"></label>
           <input id="games" type="number" min="1" max="200" value="5" />
         </div>
       </div>
 
       <div class="buttons">
-        <button id="startBtn">开始</button>
-        <button id="resetBtn">重开</button>
-        <button id="stopBtn">停止</button>
-        <button id="exportPgnBtn">导出PGN</button>
+        <button id="startBtn"></button>
+        <button id="resetBtn"></button>
+        <button id="stopBtn"></button>
+        <button id="exportPgnBtn"></button>
       </div>
 
-      <div class="section-title">当前信息</div>
-      <label>当前 FEN</label>
+      <div class="section-title" id="sectionInfo"></div>
+      <label id="fenLabel" for="fen"></label>
       <textarea id="fen" rows="2" readonly></textarea>
-      <label>走子记录（UCI）</label>
+      <label id="movesLabel" for="moves"></label>
       <textarea id="moves" rows="4" readonly></textarea>
-      <label>对局结果</label>
+      <label id="resultLabel" for="result"></label>
       <input id="result" readonly />
-      <label>当前 PGN</label>
+      <label id="pgnLabel" for="pgn"></label>
       <textarea id="pgn" rows="6" readonly></textarea>
 
-      <div class="section-title">机机系列结果</div>
+      <div class="section-title" id="sectionSeries"></div>
       <textarea id="engineSummary" rows="8" readonly></textarea>
     </div>
   </div>
 
+  <script src="/static/i18n.js"></script>
   <script src="/static/main.js"></script>
 </body>
 </html>

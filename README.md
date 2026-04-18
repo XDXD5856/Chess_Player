@@ -1,6 +1,6 @@
-# Chess Project (Stage 1 + Stage 2 Polish)
+# Chess Project (Stage 1 + Stage 2 GUI)
 
-## 30-second Quick Start (Ubuntu)
+## Quick Start (Ubuntu)
 ```bash
 python3.11 -m venv .venv
 source .venv/bin/activate
@@ -9,52 +9,56 @@ sudo apt-get install -y stockfish
 export CHESS_STOCKFISH_PATH=/usr/games/stockfish
 python scripts/stage2_run_server.py
 ```
-Then open: `http://127.0.0.1:8000`
+Open: `http://127.0.0.1:8000`
 
-## What is implemented now
-- Stage 1 engine API:
-  - `GET /health`
-  - `POST /api/engine/move`
-  - `POST /api/engine/analyze`
-- Stage 2 one-page GUI:
-  - human vs human
-  - human vs engine
-  - engine vs engine batch
-  - stop engine-vs-engine series
-  - legal move highlighting
-  - PGN export for current game
-- Stage 3: **not implemented** (returns explicit `501` unfinished response)
+## Stage status
+- Stage 1: engine API implemented
+- Stage 2: playable one-page GUI implemented
+- Stage 3: **not implemented** (`/api/stage3/recognize` returns `501`)
 
-## GUI usage (exact)
-Right panel has 3 sections:
-1. **Mode selector**: choose `human_vs_human`, `human_vs_engine`, `engine_vs_engine`
-2. **Engine settings**:
-   - white/black engine path
-   - think time
-   - game count (for engine-vs-engine)
-3. **Controls and output**:
-   - Start / Reset / Stop / Export PGN
-   - side to move, move history, current FEN, result, PGN
-   - engine-vs-engine series progress and totals
+## New GUI features in this iteration
+- Human-vs-engine color selection:
+  - White / Black / Random
+  - If human chooses Black, engine plays first automatically
+  - Board flips to Black perspective when human is Black
+- Internationalization (i18n):
+  - all UI text is centralized in `app/web/i18n.js`
+  - supported languages: English + Simplified Chinese
+  - language switch available in GUI
+- Illegal move UX:
+  - backend returns structured error codes
+  - frontend shows friendly localized messages
+  - distinguishes:
+    - illegal move
+    - not your turn
+    - no legal moves for selected piece
 
-### Engine path default logic
-- If input is empty, backend uses `CHESS_STOCKFISH_PATH`.
-- If input is provided, backend uses your value.
+## Engine path default behavior
+- If engine path input is empty, backend uses `CHESS_STOCKFISH_PATH`
+- If engine path is filled, backend uses user-provided value
 
-### Fast play recommendation
-If you only want a quick trial:
-- keep both engine path fields empty
-- set `CHESS_STOCKFISH_PATH=/usr/games/stockfish`
-- choose `human_vs_engine`
-- set think time to `0.1`
-- click Start
+## GUI usage
+1. Select language (EN / 中文)
+2. Select mode (`human_vs_human`, `human_vs_engine`, `engine_vs_engine`)
+3. If mode is `human_vs_engine`, select human color
+4. Set think time and (for engine-vs-engine) game count
+5. Optional: fill engine paths, or leave empty to use env default
+6. Use buttons: Start / Reset / Stop / Export PGN
+
+Displayed outputs:
+- side to move
+- mode hint
+- engine-vs-engine running status
+- move history
+- FEN
+- result
+- PGN
+- series stats (white wins / black wins / draws)
 
 ## API summary
-### Engine
+- `GET /health`
 - `POST /api/engine/move`
 - `POST /api/engine/analyze`
-
-### Game
 - `POST /api/game/create`
 - `POST /api/game/move`
 - `POST /api/game/legal-moves`
@@ -62,11 +66,4 @@ If you only want a quick trial:
 - `POST /api/game/engine-vs-engine/start`
 - `GET /api/game/engine-vs-engine/status/{series_id}`
 - `POST /api/game/engine-vs-engine/stop`
-
-### Stage 3 (explicitly unfinished)
-- `GET /api/stage3/recognize` -> `501`
-
-## Known limitations
-- GUI is intentionally simple (no animation, no opening book, no persisted state)
-- Engine-vs-engine series runs in-process (not distributed)
-- No board recognition / no automation gameplay
+- `GET /api/stage3/recognize` (`501` unfinished)

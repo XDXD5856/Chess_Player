@@ -19,6 +19,7 @@ class CreateGameRequest(BaseModel):
     start_fen: str | None = None
     white_engine_path: str | None = None
     black_engine_path: str | None = None
+    human_color: str = Field(default="white", pattern="^(white|black|random)$")
 
 
 class MoveRequest(BaseModel):

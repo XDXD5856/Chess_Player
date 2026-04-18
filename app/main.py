@@ -17,7 +17,14 @@ from app.api.schemas import (
 )
 from app.config import get_settings
 from app.engine.stockfish_engine import EngineFailureError, InvalidFenError, StockfishNotFoundError, analyze_position
-from app.services.game_service import GameService, game_to_dict, series_to_dict
+from app.services.game_service import (
+    GameService,
+    IllegalMoveError,
+    NoLegalMovesError,
+    NotYourTurnError,
+    game_to_dict,
+    series_to_dict,
+)
 
 settings = get_settings()
 app = FastAPI(title="Chess Engine Service")
@@ -58,12 +65,14 @@ def create_game(payload: CreateGameRequest) -> dict:
             start_fen=payload.start_fen,
             white_engine_path=white_engine,
             black_engine_path=black_engine,
+            human_color=payload.human_color,
         )
-        if payload.mode == "engine_vs_engine":
+        # If human selects black in human-vs-engine, engine (white) moves first automatically.
+        if payload.mode == "human_vs_engine" and session.human_color == "black":
             service.maybe_apply_engine_move(session.game_id)
         return game_to_dict(session)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": str(exc)}) from exc
 
 
 @app.post("/api/game/move")
@@ -74,13 +83,15 @@ def game_move(payload: MoveRequest) -> dict:
             service.maybe_apply_engine_move(session.game_id)
         return game_to_dict(session)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail={"code": "game_not_found", "message": str(exc)}) from exc
+    except NotYourTurnError as exc:
+        raise HTTPException(status_code=400, detail={"code": "not_your_turn", "message": str(exc)}) from exc
+    except IllegalMoveError as exc:
+        raise HTTPException(status_code=400, detail={"code": "illegal_move", "message": str(exc)}) from exc
     except StockfishNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail={"code": "engine_missing", "message": str(exc)}) from exc
     except EngineFailureError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail={"code": "engine_failure", "message": str(exc)}) from exc
 
 
 @app.post("/api/game/legal-moves")
@@ -89,9 +100,11 @@ def legal_moves(payload: LegalMovesRequest) -> dict:
         moves = service.legal_moves_from(payload.game_id, payload.from_square)
         return {"from_square": payload.from_square, "to_squares": moves}
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail={"code": "game_not_found", "message": str(exc)}) from exc
+    except NoLegalMovesError as exc:
+        raise HTTPException(status_code=400, detail={"code": "no_legal_moves", "message": str(exc)}) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail={"code": "bad_square", "message": str(exc)}) from exc
 
 
 @app.post("/api/game/engine-turn")
@@ -100,13 +113,13 @@ def engine_turn(payload: EngineTurnRequest) -> dict:
         session = service.maybe_apply_engine_move(payload.game_id)
         return game_to_dict(session)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail={"code": "game_not_found", "message": str(exc)}) from exc
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail={"code": "bad_request", "message": str(exc)}) from exc
     except StockfishNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail={"code": "engine_missing", "message": str(exc)}) from exc
     except EngineFailureError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail={"code": "engine_failure", "message": str(exc)}) from exc
 
 
 @app.post("/api/game/engine-vs-engine/start")
@@ -122,9 +135,9 @@ def engine_vs_engine_start(payload: EngineMatchRequest) -> dict:
         )
         return series_to_dict(series)
     except StockfishNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail={"code": "engine_missing", "message": str(exc)}) from exc
     except EngineFailureError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail={"code": "engine_failure", "message": str(exc)}) from exc
 
 
 @app.get("/api/game/engine-vs-engine/status/{series_id}")
@@ -132,7 +145,7 @@ def engine_vs_engine_status(series_id: str) -> dict:
     try:
         return series_to_dict(service.get_series(series_id))
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail={"code": "series_not_found", "message": str(exc)}) from exc
 
 
 @app.post("/api/game/engine-vs-engine/stop")
@@ -141,7 +154,7 @@ def engine_vs_engine_stop(payload: StopSeriesRequest) -> dict:
         series = service.stop_series(payload.series_id)
         return series_to_dict(series)
     except KeyError as exc:
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
+        raise HTTPException(status_code=404, detail={"code": "series_not_found", "message": str(exc)}) from exc
 
 
 @app.get("/api/stage3/recognize", response_model=UnfinishedFeatureResponse, status_code=501)
@@ -162,8 +175,8 @@ def _run_engine(payload: EngineRequest) -> EngineResponse:
         )
         return EngineResponse(**result)
     except InvalidFenError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=400, detail={"code": "invalid_fen", "message": str(exc)}) from exc
     except StockfishNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail={"code": "engine_missing", "message": str(exc)}) from exc
     except EngineFailureError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        raise HTTPException(status_code=502, detail={"code": "engine_failure", "message": str(exc)}) from exc
