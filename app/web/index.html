@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title id="pageTitle"></title>
+  <style>
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f6f8; }
+    .container { max-width: 1240px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 520px 1fr; gap: 16px; }
+    .card { background: #fff; border-radius: 12px; padding: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    #board { display: grid; grid-template-columns: repeat(8, 62px); border: 1px solid #444; width: fit-content; }
+    .sq { width: 62px; height: 62px; display: flex; align-items: center; justify-content: center; font-size: 38px; cursor: pointer; }
+    .light { background: #f0d9b5; }
+    .dark { background: #b58863; }
+    .selected { outline: 3px solid #2d7ef7; }
+    .legal { box-shadow: inset 0 0 0 4px rgba(46, 204, 113, 0.75); }
+    .section-title { font-size: 14px; font-weight: 700; margin-top: 8px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    label { display: block; margin-top: 8px; font-size: 13px; }
+    input, select, button, textarea { width: 100%; box-sizing: border-box; margin-top: 4px; padding: 8px; }
+    .buttons { display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-top: 10px; }
+    textarea { font-family: Consolas, monospace; }
+    .hint { font-size: 12px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div id="board"></div>
+      <p id="status"></p>
+      <p id="modeHint" class="hint"></p>
+      <p id="seriesHint" class="hint"></p>
+    </div>
+
+    <div class="card">
+      <div class="row2">
+        <div>
+          <div class="section-title" id="sectionMode"></div>
+        </div>
+        <div>
+          <label id="langLabel" for="language"></label>
+          <select id="language">
+            <option value="en">English</option>
+            <option value="zh">简体中文</option>
+          </select>
+        </div>
+      </div>
+
+      <label id="modeLabel" for="mode"></label>
+      <select id="mode">
+        <option value="human_vs_human" id="optHvh"></option>
+        <option value="human_vs_engine" id="optHve"></option>
+        <option value="engine_vs_engine" id="optEve"></option>
+      </select>
+
+      <label id="humanColorLabel" for="humanColor"></label>
+      <select id="humanColor">
+        <option value="white" id="humanWhite"></option>
+        <option value="black" id="humanBlack"></option>
+        <option value="random" id="humanRandom"></option>
+      </select>
+
+      <div class="section-title" id="sectionEngine"></div>
+      <label id="whitePathLabel" for="whiteEnginePath"></label>
+      <input id="whiteEnginePath" placeholder="/usr/games/stockfish" />
+      <label id="blackPathLabel" for="blackEnginePath"></label>
+      <input id="blackEnginePath" placeholder="/usr/games/stockfish" />
+
+      <div class="row2">
+        <div>
+          <label id="thinkTimeLabel" for="thinkTime"></label>
+          <input id="thinkTime" type="number" min="0.01" step="0.01" value="0.1" />
+        </div>
+        <div>
+          <label id="gamesLabel" for="games"></label>
+          <input id="games" type="number" min="1" max="200" value="5" />
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button id="startBtn"></button>
+        <button id="resetBtn"></button>
+        <button id="stopBtn"></button>
+        <button id="exportPgnBtn"></button>
+      </div>
+
+      <div class="section-title" id="sectionInfo"></div>
+      <label id="fenLabel" for="fen"></label>
+      <textarea id="fen" rows="2" readonly></textarea>
+      <label id="movesLabel" for="moves"></label>
+      <textarea id="moves" rows="4" readonly></textarea>
+      <label id="resultLabel" for="result"></label>
+      <input id="result" readonly />
+      <label id="pgnLabel" for="pgn"></label>
+      <textarea id="pgn" rows="6" readonly></textarea>
+
+      <div class="section-title" id="sectionSeries"></div>
+      <textarea id="engineSummary" rows="8" readonly></textarea>
+    </div>
+  </div>
+
+  <script src="/static/i18n.js"></script>
+  <script src="/static/main.js"></script>
+</body>
+</html>

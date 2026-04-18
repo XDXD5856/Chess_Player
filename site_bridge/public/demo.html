@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>site_bridge auto match demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 1000px; margin: 20px auto; padding: 0 12px; }
+    textarea, input, button { width: 100%; box-sizing: border-box; margin-top: 8px; padding: 8px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .controls { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    pre { background: #f3f3f3; padding: 8px; border-radius: 6px; white-space: pre-wrap; }
+  </style>
+</head>
+<body>
+  <h1>site_bridge automatic match demo</h1>
+  <p>Flow: BoardState -> FEN -> /api/engine/move -> apply UCI move -> update board -> continue.</p>
+
+  <div class="grid">
+    <div>
+      <label>Think time (seconds)</label>
+      <input id="thinkTime" value="0.1" />
+    </div>
+    <div>
+      <label>White engine path (optional)</label>
+      <input id="whiteEnginePath" placeholder="/usr/games/stockfish" />
+    </div>
+  </div>
+
+  <label>Black engine path (optional)</label>
+  <input id="blackEnginePath" placeholder="/usr/games/stockfish" />
+
+  <div class="controls">
+    <button id="analyzeBtn">Analyze</button>
+    <button id="stepBtn">Step Once</button>
+    <button id="startBtn">Start Auto Match</button>
+    <button id="stopBtn">Stop</button>
+  </div>
+
+  <label>BoardState JSON</label>
+  <textarea id="boardInput" rows="14"></textarea>
+
+  <label>Board (text view)</label>
+  <pre id="boardOut"></pre>
+
+  <div class="grid">
+    <div>
+      <label>Current FEN</label>
+      <input id="fenOut" readonly />
+    </div>
+    <div>
+      <label>Latest best move</label>
+      <input id="bestMoveOut" readonly />
+    </div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <label>Evaluation</label>
+      <input id="evalOut" readonly />
+    </div>
+    <div>
+      <label>Result</label>
+      <input id="resultOut" readonly />
+    </div>
+  </div>
+
+  <label>Move list</label>
+  <textarea id="movesOut" rows="4" readonly></textarea>
+
+  <label>Error</label>
+  <pre id="errorOut"></pre>
+
+  <script type="module" src="/demo_page.js"></script>
+</body>
+</html>
